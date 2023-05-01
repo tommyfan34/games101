@@ -49,8 +49,21 @@ Eigen::Matrix4f get_model_matrix(float angle)
 
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
-    // TODO: Use the same projection matrix from the previous assignments
+    Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
 
+    // Create the projection matrix for the given parameters.
+    // Then return it.
+    float top = tanf(eye_fov / 2.0f) * zNear;
+    float bottom = -top;
+    float right = top * aspect_ratio;
+    float left = -right;
+
+    projection(0, 0) = zNear / right;
+    projection(1, 1) = zNear / top;
+    projection(2, 2) = (zNear + zFar) / (zNear - zFar);
+    projection(2, 3) = (2 * zNear * zFar) / (zNear - zFar);
+    projection(3, 2) = -1.0f;
+    return projection;
 }
 
 Eigen::Vector3f vertex_shader(const vertex_shader_payload& payload)
@@ -112,7 +125,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
-
+        
     }
 
     return result_color * 255.f;
@@ -143,6 +156,22 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
         
+        // parameters to use
+        Vector3f l = (light.position - point).normalized();
+        Vector3f v = (eye_pos - point).normalized();
+        Vector3f h = (v + l).normalized();
+        float r_square = (light.position - point).dot(light.position - point);
+
+        // ambient light
+        Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+        
+        // diffusion light
+        Vector3f diffusion = kd.cwiseProduct(light.intensity / r_square) * std::max(0.0f, normal.normalized().dot(l.normalized()));
+        
+        // specular light
+        Vector3f specular = ks.cwiseProduct(light.intensity / r_square) * pow((std::max(0.0f, normal.normalized().dot(h))), p);
+        
+        result_color += (ambient + diffusion + specular);
     }
 
     return result_color * 255.f;
